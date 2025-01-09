@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage <%= guild.name %></title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Server Header -->
+        <div class="flex items-center mb-8">
+            <% if (guild.icon) { %>
+                <img src="https://cdn.discordapp.com/icons/<%= guild.id %>/<%= guild.icon %>.png" 
+                     alt="Server Icon" class="w-16 h-16 rounded-full mr-4">
+            <% } %>
+            <h1 class="text-3xl font-bold"><%= guild.name %></h1>
+        </div>
+
+        <!-- Settings Sections -->
+        <div class="grid md:grid-cols-2 gap-6">
+            <!-- Prefix Settings -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-xl font-semibold mb-4">Bot Prefix</h2>
+                <form action="/dashboard/guild/<%= guild.id %>/prefix" method="POST" class="space-y-4">
+                    <div class="flex gap-2">
+                        <input type="text" name="prefix" placeholder="New prefix" maxlength="3"
+                               class="flex-1 border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               required>
+                        <button type="submit" 
+                                class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">
+                            Update
+                        </button>
+                    </div>
+                    <p class="text-sm text-gray-600">Current prefix: <span class="font-mono" id="currentPrefix"><%= currentPrefix %></span></p>
+                </form>
+            </div>
+
+            <!-- Welcome Message -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-xl font-semibold mb-4">Welcome Message</h2>
+                <form action="/dashboard/guild/<%= guild.id %>/welcome" method="POST" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Welcome Channel
+                        </label>
+                        <select name="welcomeChannel" class="w-full border rounded px-3 py-2">
+                            <option value="">Select a channel</option>
+                            <!-- Add channel options here -->
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Welcome Message
+                        </label>
+                        <textarea name="welcomeMessage" rows="3" 
+                                  class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  placeholder="Welcome {user} to {server}!"></textarea>
+                    </div>
+                    <button type="submit" 
+                            class="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">
+                        Save Welcome Settings
+                    </button>
+                </form>
+            </div>
+
+            <!-- Moderation Settings -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-xl font-semibold mb-4">Moderation</h2>
+                <form action="/dashboard/guild/<%= guild.id %>/moderation" method="POST" class="space-y-4">
+                    <div class="space-y-2">
+                        <label class="flex items-center">
+                            <input type="checkbox" name="automod" class="rounded text-blue-500 mr-2">
+                            Enable Auto-Mod
+                        </label>
+                        <label class="flex items-center">
+                            <input type="checkbox" name="logActions" class="rounded text-blue-500 mr-2">
+                            Log Moderation Actions
+                        </label>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Mod Log Channel
+                        </label>
+                        <select name="modLogChannel" class="w-full border rounded px-3 py-2">
+                            <option value="">Select a channel</option>
+                            <!-- Add channel options here -->
+                        </select>
+                    </div>
+                    <button type="submit" 
+                            class="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">
+                        Save Mod Settings
+                    </button>
+                </form>
+            </div>
+
+            <!-- Auto Roles -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-xl font-semibold mb-4">Auto Roles</h2>
+                <form action="/dashboard/guild/<%= guild.id %>/autoroles" method="POST" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Role on Join
+                        </label>
+                        <select name="joinRole" class="w-full border rounded px-3 py-2">
+                            <option value="">Select a role</option>
+                            <!-- Add role options here -->
+                        </select>
+                    </div>
+                    <button type="submit" 
+                            class="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">
+                        Save Role Settings
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Back Button -->
+        <a href="/dashboard" 
+           class="inline-block mt-6 text-blue-500 hover:text-blue-600 transition">
+            ← Back to Servers
+        </a>
+    </div>
+
+    <!-- Add JavaScript for interactivity -->
+    <script>
+        // Form submission handling
+        document.querySelector('form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            try {
+                const formData = new FormData(e.target);
+                const response = await fetch(e.target.action, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams(formData)
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Update the displayed prefix immediately
+                    document.getElementById('currentPrefix').textContent = formData.get('prefix');
+                    alert('Prefix updated successfully!');
+                } else {
+                    throw new Error(data.error || 'Failed to update prefix');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to save settings: ' + error.message);
+            }
+        });
+    </script>
+</body>
+</html> 
