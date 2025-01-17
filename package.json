@@ -17,6 +17,6 @@
     "express-session": "^1.x",
     "passport": "^0.x",
     "passport-discord": "^0.x",
-    "ngrok": "^5.0.0"
+    "ngrok": "^3.4.1"
   }
 }
