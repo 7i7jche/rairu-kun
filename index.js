@@ -40,11 +40,14 @@ async function updatePrefix(guildId, newPrefix) {
     }
 }
 
+// Create client with proper intents
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildPresences
     ]
 });
 
@@ -177,9 +180,10 @@ client.on('interactionCreate', async interaction => {
     }
 });
 
-// Ready event
+// Add a ready event handler
 client.once('ready', () => {
     console.log(`Logged in as ${client.user.tag}!`);
+    console.log('Bot is now online!');
     startDashboard(client);
 });
 
