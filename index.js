@@ -40,17 +40,20 @@ async function updatePrefix(guildId, newPrefix) {
     }
 }
 
-// Create client with proper intents
+// Create Discord client with ALL necessary intents
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
         GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildPresences
+        GatewayIntentBits.GuildPresences,
+        GatewayIntentBits.DirectMessages,
+        GatewayIntentBits.GuildIntegrations
     ]
 });
 
+// Set up commands collection
 client.commands = new Collection();
 
 // Create logger
@@ -128,61 +131,29 @@ client.on('messageCreate', async message => {
 
 // Interaction event handler
 client.on('interactionCreate', async interaction => {
-    if (!interaction.isChatInputCommand()) return;
+    if (!interaction.isCommand()) return;
+    console.log(`Received command: ${interaction.commandName}`);
 
     const command = client.commands.get(interaction.commandName);
     if (!command) return;
 
-    // Check cooldown
-    const { cooldown = 3 } = command;
-    if (cooldowns.has(`${interaction.user.id}-${command.data.name}`)) {
-        const expirationTime = cooldowns.get(`${interaction.user.id}-${command.data.name}`);
-        const timeLeft = (expirationTime - Date.now()) / 1000;
-
-        if (timeLeft > 0) {
-            return interaction.reply({
-                content: `Please wait ${timeLeft.toFixed(1)} more seconds before using \`${command.data.name}\``,
-                ephemeral: true
-            });
-        }
-    }
-
     try {
-        // Set cooldown
-        cooldowns.set(
-            `${interaction.user.id}-${command.data.name}`,
-            Date.now() + cooldown * 1000
-        );
-
         await command.execute(interaction);
-        logger.info(`Command ${command.data.name} executed by ${interaction.user.tag}`);
     } catch (error) {
-        logger.error(`Error executing ${command.data.name}:`, error);
-        
-        const errorMessage = process.env.NODE_ENV === 'production'
-            ? 'There was an error executing this command.'
-            : `Error: ${error.message}`;
-
-        if (interaction.replied || interaction.deferred) {
-            await interaction.followUp({
-                content: errorMessage,
-                ephemeral: true
-            });
-        } else {
-            await interaction.reply({
-                content: errorMessage,
-                ephemeral: true
-            });
-        }
-    } finally {
-        // Clean up cooldown after execution
-        setTimeout(() => cooldowns.delete(`${interaction.user.id}-${command.data.name}`), cooldown * 1000);
+        console.error(error);
+        await interaction.reply({ 
+            content: 'There was an error executing this command!', 
+            ephemeral: true 
+        });
     }
 });
 
 // Add a ready event handler
 client.once('ready', () => {
-    console.log(`Discord bot logged in as ${client.user.tag}`);
+    console.log('=== Bot Ready ===');
+    console.log(`Logged in as: ${client.user.tag}`);
+    console.log(`In ${client.guilds.cache.size} servers`);
+    console.log('================');
 });
 
 client.on('error', (error) => {
@@ -209,7 +180,14 @@ const PORT = process.env.PORT || 3000;
 
 // Express routes
 app.get('/', (req, res) => {
-    res.send('Bot is running!');
+    const status = {
+        server: 'running',
+        port: PORT,
+        botStatus: client.user ? 'online' : 'offline',
+        botUsername: client.user?.tag || 'not logged in',
+        guilds: client.guilds.cache.size
+    };
+    res.json(status);
 });
 
 app.get('/health', (req, res) => {
@@ -219,19 +197,29 @@ app.get('/health', (req, res) => {
 // Start both the bot and the web server
 async function startBot() {
     try {
-        // Start express server first
+        // Load commands
+        await loadCommands();
+        
+        // Start express server
         const server = app.listen(PORT, '0.0.0.0', () => {
             console.log(`Server is running on port ${PORT}`);
         });
 
-        // Then start the bot
+        // Verify token exists
+        if (!process.env.TOKEN) {
+            throw new Error('Discord TOKEN is not set in environment variables');
+        }
+
+        // Start the bot
         console.log('Attempting to log in to Discord...');
         await client.login(process.env.TOKEN);
         console.log('Discord login successful');
 
     } catch (error) {
         console.error('Error starting application:', error);
-        process.exit(1);
+        console.error('Error details:', error.message);
+        // Don't exit, keep the web server running
+        console.log('Web server will continue running despite bot error');
     }
 }
 
