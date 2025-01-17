@@ -17,6 +17,7 @@
     "express-session": "^1.x",
     "passport": "^0.x",
     "passport-discord": "^0.x",
-    "ngrok": "^3.4.1"
+    "ngrok": "^3.4.1",
+    "winston": "^3.11.0"
   }
 }
