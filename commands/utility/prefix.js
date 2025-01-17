@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
-import { updatePrefix } from '../../.github/index.js';
+import { updatePrefix } from '../../index.js';
 
 export default {
     data: new SlashCommandBuilder()

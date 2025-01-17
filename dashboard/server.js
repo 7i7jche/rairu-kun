@@ -5,7 +5,7 @@ import { Strategy as DiscordStrategy } from 'passport-discord';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { config } from 'dotenv';
-import { updatePrefix, loadPrefix } from '../.github/index.js';
+import { updatePrefix, loadPrefix } from '../index.js';
 
 // Load environment variables
 config();

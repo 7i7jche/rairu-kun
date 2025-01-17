@@ -4,7 +4,9 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import fs from 'fs';
 import { readFileSync, writeFileSync } from 'fs';
-import { startDashboard } from '../dashboard/server.js';
+import { startDashboard } from './dashboard/server.js';
+import { createLogger, format, transports } from 'winston';
+import ngrok from 'ngrok';
 
 config();
 
@@ -46,6 +48,42 @@ const client = new Client({
 });
 
 client.commands = new Collection();
+
+// Create logger
+const logger = createLogger({
+    level: 'info',
+    format: format.combine(
+        format.timestamp(),
+        format.json()
+    ),
+    transports: [
+        new transports.File({ filename: 'logs/error.log', level: 'error' }),
+        new transports.File({ filename: 'logs/combined.log' })
+    ]
+});
+
+if (process.env.NODE_ENV !== 'production') {
+    logger.add(new transports.Console({
+        format: format.combine(
+            format.colorize(),
+            format.simple()
+        )
+    }));
+}
+
+// Error handling
+process.on('unhandledRejection', (error) => {
+    logger.error('Unhandled promise rejection:', error);
+});
+
+process.on('uncaughtException', (error) => {
+    logger.error('Uncaught exception:', error);
+    // Give time for logs to be written before exiting
+    setTimeout(() => process.exit(1), 1000);
+});
+
+// Rate limiting map
+const cooldowns = new Map();
 
 // Async function to load commands
 async function loadCommands() {
@@ -91,15 +129,50 @@ client.on('interactionCreate', async interaction => {
     const command = client.commands.get(interaction.commandName);
     if (!command) return;
 
-    try {
-        await command.execute(interaction);
-    } catch (error) {
-        console.error(error);
-        if (interaction.replied || interaction.deferred) {
-            await interaction.followUp({ content: 'Error executing command!', ephemeral: true });
-        } else {
-            await interaction.reply({ content: 'Error executing command!', ephemeral: true });
+    // Check cooldown
+    const { cooldown = 3 } = command;
+    if (cooldowns.has(`${interaction.user.id}-${command.data.name}`)) {
+        const expirationTime = cooldowns.get(`${interaction.user.id}-${command.data.name}`);
+        const timeLeft = (expirationTime - Date.now()) / 1000;
+
+        if (timeLeft > 0) {
+            return interaction.reply({
+                content: `Please wait ${timeLeft.toFixed(1)} more seconds before using \`${command.data.name}\``,
+                ephemeral: true
+            });
         }
+    }
+
+    try {
+        // Set cooldown
+        cooldowns.set(
+            `${interaction.user.id}-${command.data.name}`,
+            Date.now() + cooldown * 1000
+        );
+
+        await command.execute(interaction);
+        logger.info(`Command ${command.data.name} executed by ${interaction.user.tag}`);
+    } catch (error) {
+        logger.error(`Error executing ${command.data.name}:`, error);
+        
+        const errorMessage = process.env.NODE_ENV === 'production'
+            ? 'There was an error executing this command.'
+            : `Error: ${error.message}`;
+
+        if (interaction.replied || interaction.deferred) {
+            await interaction.followUp({
+                content: errorMessage,
+                ephemeral: true
+            });
+        } else {
+            await interaction.reply({
+                content: errorMessage,
+                ephemeral: true
+            });
+        }
+    } finally {
+        // Clean up cooldown after execution
+        setTimeout(() => cooldowns.delete(`${interaction.user.id}-${command.data.name}`), cooldown * 1000);
     }
 });
 
@@ -109,11 +182,26 @@ client.once('ready', () => {
     startDashboard(client);
 });
 
-// Load commands and login
+// Connect to ngrok
+async function connectToNgrok() {
+    try {
+        const url = await ngrok.connect({
+            addr: process.env.PORT || 3000,
+            authtoken: process.env.NGROK_TOKEN,
+            region: process.env.REGION || 'ap'
+        });
+        console.log('Ngrok tunnel created:', url);
+    } catch (error) {
+        console.error('Ngrok connection error:', error);
+    }
+}
+
+// Start the bot and ngrok
 async function startBot() {
     try {
         await loadCommands();
         await client.login(process.env.TOKEN);
+        await connectToNgrok();
     } catch (error) {
         console.error('Error starting bot:', error);
     }

@@ -1,19 +1,29 @@
-FROM debian
-ARG NGROK_TOKEN
-ARG REGION=ap
-ENV DEBIAN_FRONTEND=noninteractive
-RUN apt update && apt upgrade -y && apt install -y \
-    ssh wget unzip vim curl python3
-RUN wget -q https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-linux-amd64.zip -O /ngrok-stable-linux-amd64.zip\
-    && cd / && unzip ngrok-stable-linux-amd64.zip \
-    && chmod +x ngrok
-RUN mkdir /run/sshd \
-    && echo "/ngrok tcp --authtoken ${NGROK_TOKEN} --region ${REGION} 22 &" >>/openssh.sh \
-    && echo "sleep 5" >> /openssh.sh \
-    && echo "curl -s http://localhost:4040/api/tunnels | python3 -c \"import sys, json; print(\\\"ssh info:\\\n\\\",\\\"ssh\\\",\\\"root@\\\"+json.load(sys.stdin)['tunnels'][0]['public_url'][6:].replace(':', ' -p '),\\\"\\\nROOT Password:craxid\\\")\" || echo \"\nError：NGROK_TOKEN，Ngrok Token\n\"" >> /openssh.sh \
-    && echo '/usr/sbin/sshd -D' >>/openssh.sh \
-    && echo 'PermitRootLogin yes' >>  /etc/ssh/sshd_config  \
-    && echo root:craxid|chpasswd \
-    && chmod 755 /openssh.sh
-EXPOSE 80 443 3306 4040 5432 5700 5701 5010 6800 6900 8080 8888 9000
-CMD /openssh.sh
+FROM node:18-alpine
+
+# Install ngrok
+RUN wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz \
+    && tar xvzf ngrok-v3-stable-linux-amd64.tgz -C /usr/local/bin \
+    && rm ngrok-v3-stable-linux-amd64.tgz
+
+WORKDIR /usr/src/app
+
+# Install dependencies
+COPY package*.json ./
+RUN npm ci --only=production
+
+# Copy app source
+COPY . .
+
+# Set up ngrok configuration
+RUN mkdir -p /root/.ngrok2
+RUN echo "authtoken: ${NGROK_TOKEN}\nversion: 2\nregion: ${REGION:-ap}" > /root/.ngrok2/ngrok.yml
+
+# Expose port for dashboard
+EXPOSE 3000
+
+# Start script
+COPY start.sh /
+RUN chmod +x /start.sh
+
+# Start the application
+CMD ["/start.sh"]
