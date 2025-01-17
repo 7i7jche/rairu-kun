@@ -1,5 +1,4 @@
 import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
-import { updatePrefix } from '../../index.js';
 
 export default {
     data: new SlashCommandBuilder()
@@ -12,9 +11,7 @@ export default {
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction) {
-        const newPrefix = interaction.options.getString('newprefix');
-        await updatePrefix(interaction.guild.id, newPrefix);
-        await interaction.reply(`Prefix updated to: \`${newPrefix}\``);
+        await interaction.reply('Slash commands do not use prefixes!');
     },
 
     async messageExecute(message, args) {
