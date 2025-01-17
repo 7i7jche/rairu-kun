@@ -205,28 +205,34 @@ async function startBot() {
             console.log(`Server is running on port ${PORT}`);
         });
 
+        // Debug token
+        const token = process.env.TOKEN;
+        console.log('Token length:', token ? token.length : 0);
+        console.log('Token prefix:', token ? token.substring(0, 4) : 'none');
+
         // Verify token
-        if (!process.env.TOKEN) {
+        if (!token) {
             throw new Error('Discord TOKEN is not set');
         }
-        console.log('Token exists in environment');
 
-        // Attempt login with error catching
+        // Attempt login with timeout
         console.log('Attempting to log in to Discord...');
-        try {
-            await client.login(process.env.TOKEN);
-            console.log('Discord login successful');
-        } catch (loginError) {
-            console.error('Discord login failed:', loginError);
-            throw loginError;
-        }
+        const loginPromise = client.login(token);
+        
+        // Add 30-second timeout
+        const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Login timeout after 30 seconds')), 30000);
+        });
+
+        // Race between login and timeout
+        await Promise.race([loginPromise, timeoutPromise]);
+        console.log('Discord login successful');
 
     } catch (error) {
         console.error('Startup error:', error);
-        console.error('Error details:', {
-            message: error.message,
-            stack: error.stack
-        });
+        if (error.code) {
+            console.error('Discord API Error Code:', error.code);
+        }
     }
 }
 
