@@ -40,16 +40,11 @@ async function updatePrefix(guildId, newPrefix) {
     }
 }
 
-// Create Discord client with ALL necessary intents
+// Create Discord client with minimal intents first
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildPresences,
-        GatewayIntentBits.DirectMessages,
-        GatewayIntentBits.GuildIntegrations
+        GatewayIntentBits.GuildMessages
     ]
 });
 
@@ -148,16 +143,14 @@ client.on('interactionCreate', async interaction => {
     }
 });
 
-// Add a ready event handler
+// Discord client event handlers
 client.once('ready', () => {
     console.log('=== Bot Ready ===');
     console.log(`Logged in as: ${client.user.tag}`);
-    console.log(`In ${client.guilds.cache.size} servers`);
-    console.log('================');
 });
 
-client.on('error', (error) => {
-    console.error('Discord client error:', error);
+client.on('error', error => {
+    console.error('Discord Client Error:', error);
 });
 
 // Connect to ngrok
@@ -197,9 +190,6 @@ app.get('/health', (req, res) => {
 // Start both the bot and the web server
 async function startBot() {
     try {
-        // Load commands
-        await loadCommands();
-        
         // Start express server
         const server = app.listen(PORT, '0.0.0.0', () => {
             console.log(`Server is running on port ${PORT}`);
@@ -211,47 +201,17 @@ async function startBot() {
             throw new Error('Discord TOKEN is not set');
         }
 
-        // Log token details (safely)
-        console.log('Token validation:');
-        console.log('- Length:', token.length);
-        console.log('- Starts with:', token.substring(0, 6) + '...');
-        console.log('- Ends with:', '...' + token.substring(token.length - 6));
-
-        // Attempt login with longer timeout and retry
+        // Simple login attempt
         console.log('Attempting to log in to Discord...');
+        await client.login(token).catch(error => {
+            console.error('Login error:', error);
+            throw error;
+        });
         
-        let attempts = 0;
-        const maxAttempts = 3;
-        
-        while (attempts < maxAttempts) {
-            attempts++;
-            try {
-                console.log(`Login attempt ${attempts}/${maxAttempts}`);
-                await Promise.race([
-                    client.login(token),
-                    new Promise((_, reject) => 
-                        setTimeout(() => reject(new Error('Login attempt timed out')), 60000)
-                    )
-                ]);
-                console.log('Discord login successful!');
-                break;
-            } catch (error) {
-                console.error(`Login attempt ${attempts} failed:`, error.message);
-                if (attempts === maxAttempts) {
-                    throw new Error('All login attempts failed');
-                }
-                // Wait 5 seconds before retrying
-                await new Promise(resolve => setTimeout(resolve, 5000));
-            }
-        }
+        console.log('Discord login successful!');
 
     } catch (error) {
         console.error('Startup error:', error);
-        console.error('Full error details:', {
-            message: error.message,
-            code: error.code,
-            stack: error.stack
-        });
     }
 }
 
