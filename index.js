@@ -205,21 +205,28 @@ async function startBot() {
             console.log(`Server is running on port ${PORT}`);
         });
 
-        // Verify token exists
+        // Verify token
         if (!process.env.TOKEN) {
-            throw new Error('Discord TOKEN is not set in environment variables');
+            throw new Error('Discord TOKEN is not set');
+        }
+        console.log('Token exists in environment');
+
+        // Attempt login with error catching
+        console.log('Attempting to log in to Discord...');
+        try {
+            await client.login(process.env.TOKEN);
+            console.log('Discord login successful');
+        } catch (loginError) {
+            console.error('Discord login failed:', loginError);
+            throw loginError;
         }
 
-        // Start the bot
-        console.log('Attempting to log in to Discord...');
-        await client.login(process.env.TOKEN);
-        console.log('Discord login successful');
-
     } catch (error) {
-        console.error('Error starting application:', error);
-        console.error('Error details:', error.message);
-        // Don't exit, keep the web server running
-        console.log('Web server will continue running despite bot error');
+        console.error('Startup error:', error);
+        console.error('Error details:', {
+            message: error.message,
+            stack: error.stack
+        });
     }
 }
 
