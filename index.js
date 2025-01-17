@@ -201,36 +201,34 @@ async function connectToNgrok() {
     }
 }
 
-// Add port configuration
+// Initialize Express
+const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Start the bot and server
+// Express routes
+app.get('/', (req, res) => {
+    res.send('Bot is running!');
+});
+
+app.get('/health', (req, res) => {
+    res.status(200).json({ status: 'healthy' });
+});
+
+// Start both the bot and the web server
 async function startBot() {
     try {
-        await loadCommands();
-        await client.login(process.env.TOKEN);
-        
-        // Add express server
-        const app = express();
-        app.get('/', (req, res) => {
-            res.send('Bot is running!');
-        });
-        
-        // Start server
-        app.listen(PORT, '0.0.0.0', () => {
+        // Start express server first
+        const server = app.listen(PORT, '0.0.0.0', () => {
             console.log(`Server is running on port ${PORT}`);
         });
-        
-        // Connect to ngrok
-        const url = await ngrok.connect({
-            addr: PORT,
-            authtoken: process.env.NGROK_TOKEN,
-            region: 'ap'  // Asia Pacific region
-        });
-        console.log('Ngrok tunnel created:', url);
-        
+
+        // Then start the bot
+        await client.login(process.env.TOKEN);
+        console.log(`Logged in as ${client.user.tag}`);
+
     } catch (error) {
-        console.error('Error starting bot:', error);
+        console.error('Error starting application:', error);
+        process.exit(1);
     }
 }
 
