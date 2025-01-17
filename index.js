@@ -182,9 +182,11 @@ client.on('interactionCreate', async interaction => {
 
 // Add a ready event handler
 client.once('ready', () => {
-    console.log(`Logged in as ${client.user.tag}!`);
-    console.log('Bot is now online!');
-    startDashboard(client);
+    console.log(`Discord bot logged in as ${client.user.tag}`);
+});
+
+client.on('error', (error) => {
+    console.error('Discord client error:', error);
 });
 
 // Connect to ngrok
@@ -223,8 +225,9 @@ async function startBot() {
         });
 
         // Then start the bot
+        console.log('Attempting to log in to Discord...');
         await client.login(process.env.TOKEN);
-        console.log(`Logged in as ${client.user.tag}`);
+        console.log('Discord login successful');
 
     } catch (error) {
         console.error('Error starting application:', error);
