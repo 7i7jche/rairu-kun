@@ -207,32 +207,51 @@ async function startBot() {
 
         // Debug token
         const token = process.env.TOKEN;
-        console.log('Token length:', token ? token.length : 0);
-        console.log('Token prefix:', token ? token.substring(0, 4) : 'none');
-
-        // Verify token
         if (!token) {
             throw new Error('Discord TOKEN is not set');
         }
 
-        // Attempt login with timeout
-        console.log('Attempting to log in to Discord...');
-        const loginPromise = client.login(token);
-        
-        // Add 30-second timeout
-        const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('Login timeout after 30 seconds')), 30000);
-        });
+        // Log token details (safely)
+        console.log('Token validation:');
+        console.log('- Length:', token.length);
+        console.log('- Starts with:', token.substring(0, 6) + '...');
+        console.log('- Ends with:', '...' + token.substring(token.length - 6));
 
-        // Race between login and timeout
-        await Promise.race([loginPromise, timeoutPromise]);
-        console.log('Discord login successful');
+        // Attempt login with longer timeout and retry
+        console.log('Attempting to log in to Discord...');
+        
+        let attempts = 0;
+        const maxAttempts = 3;
+        
+        while (attempts < maxAttempts) {
+            attempts++;
+            try {
+                console.log(`Login attempt ${attempts}/${maxAttempts}`);
+                await Promise.race([
+                    client.login(token),
+                    new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error('Login attempt timed out')), 60000)
+                    )
+                ]);
+                console.log('Discord login successful!');
+                break;
+            } catch (error) {
+                console.error(`Login attempt ${attempts} failed:`, error.message);
+                if (attempts === maxAttempts) {
+                    throw new Error('All login attempts failed');
+                }
+                // Wait 5 seconds before retrying
+                await new Promise(resolve => setTimeout(resolve, 5000));
+            }
+        }
 
     } catch (error) {
         console.error('Startup error:', error);
-        if (error.code) {
-            console.error('Discord API Error Code:', error.code);
-        }
+        console.error('Full error details:', {
+            message: error.message,
+            code: error.code,
+            stack: error.stack
+        });
     }
 }
 
