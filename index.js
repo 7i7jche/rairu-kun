@@ -221,6 +221,14 @@ async function startBot() {
             console.log(`Server is running on port ${PORT}`);
         });
         
+        // Connect to ngrok
+        const url = await ngrok.connect({
+            addr: PORT,
+            authtoken: process.env.NGROK_TOKEN,
+            region: 'ap'  // Asia Pacific region
+        });
+        console.log('Ngrok tunnel created:', url);
+        
     } catch (error) {
         console.error('Error starting bot:', error);
     }
