@@ -7,6 +7,7 @@ import { readFileSync, writeFileSync } from 'fs';
 import { startDashboard } from './dashboard/server.js';
 import { createLogger, format, transports } from 'winston';
 import ngrok from 'ngrok';
+import express from 'express';
 
 config();
 
@@ -196,12 +197,26 @@ async function connectToNgrok() {
     }
 }
 
-// Start the bot and ngrok
+// Add port configuration
+const PORT = process.env.PORT || 3000;
+
+// Start the bot and server
 async function startBot() {
     try {
         await loadCommands();
         await client.login(process.env.TOKEN);
-        await connectToNgrok();
+        
+        // Add express server
+        const app = express();
+        app.get('/', (req, res) => {
+            res.send('Bot is running!');
+        });
+        
+        // Start server
+        app.listen(PORT, () => {
+            console.log(`Server is running on port ${PORT}`);
+        });
+        
     } catch (error) {
         console.error('Error starting bot:', error);
     }
