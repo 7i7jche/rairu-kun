@@ -2,24 +2,13 @@ services:
   - type: web
     name: rairu-kun
     env: docker
-    repo: https://github.com/craxid/rairu-kun
-    region: singapore
     plan: free
-    healthCheckPath: /
+    buildCommand: npm install && node deploy-commands.js
+    startCommand: node index.js
     envVars:
-      - key: PORT
-        value: 3000
-      - key: NODE_ENV
-        value: production
       - key: TOKEN
         sync: false
       - key: CLIENT_ID
         sync: false
       - key: CLIENT_SECRET
         sync: false
-      - key: NGROK_TOKEN
-        sync: false
-      - key: REGION
-        value: ap
-    buildCommand: chmod +x start.sh
-    startCommand: ./start.sh
